@@ -112,7 +112,7 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 
 | Model | Campos | Observações |
 |-------|--------|-------------|
-| `User` | id, name, **username** (único), email (único), passwordHash, avatarId?, coins, streakDays, lastStreakDate? | O login é por `username` (RN-003). `coins` são as moedas, que também são os pontos do Rank; **não existe XP** (RN-092). `coins` é um cache do histórico de moedas (fase 2). `streakDays` e `lastStreakDate` controlam a sequência de dias (RN-096, regra do "dia" pendente na RN-097). O nível não é guardado: é calculado pelas moedas (seção 5.4). |
+| `User` | id, name, **username** (único), email (único), passwordHash, avatarId?, backgroundId?, coins, streakDays, lastStreakDate? | O login é por `username` (RN-003). `coins` são as moedas, que também são os pontos do Rank; **não existe XP** (RN-092). `coins` é um cache do histórico de moedas (fase 2). `streakDays` e `lastStreakDate` controlam a sequência de dias (RN-096, regra do "dia" pendente na RN-097). O nível não é guardado: é calculado pelas moedas (seção 5.4). `backgroundId` é o fundo escolhido pelo usuário (RN-100); fica vazio até o nível 14, quando o avatar ainda aparece sem fundo. |
 
 **Catálogo de disciplinas** (usado por cards e questões)
 
@@ -165,6 +165,7 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 | `CardReview` | sessionId, flashcardId, difficulty?, reviewedAt | Histórico de cada marcação, para os Relatórios. A dificuldade **atual** do card fica em `Flashcard.difficulty` (fase 1). Sem chave única por card: com as repetições (RN-171), o mesmo card pode ser marcado mais de uma vez na sessão. |
 | `CoinTransaction` | id, userId, amount, reason, reviewSessionId?, attemptId?, createdAt | Histórico de moedas ganhas (RN-096). É a fonte da verdade de `User.coins`: os dois são atualizados na mesma transação. `reason`: `CoinReason`. |
 | `Avatar` | id, imageKey, name, upgraded, requiredLevel (único) | Os 14 avatares de `assets/images/avatares`, cada um com o nível que o libera (RN-094). Sem tabela de desbloqueio: o usuário tem todos os avatares com `requiredLevel` menor ou igual ao nível dele. Escolher um avatar (`User.avatarId`) só é aceito se ele estiver liberado. |
+| `Background` | id, imageKey, name, character (único), requiredLevel (único) | Os 7 fundos de `assets/images/cenarios` dos níveis 14 a 20, um para cada personagem (RN-100). Mesma lógica do `Avatar`: sem tabela de desbloqueio, o usuário tem todos os fundos com `requiredLevel` até o nível dele, e escolher um fundo (`User.backgroundId`) só é aceito se ele estiver liberado. Se o fundo só vale com o avatar do mesmo personagem (RN-099), a escolha também confere `character`. |
 
 **Fora do plano por decisão do grupo:**
 - **Recuperação de senha:** é feita pelo suporte, por e-mail (RN-008). Não há tabela de token nem rota.
@@ -187,7 +188,7 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 - Relatórios (RN-190, RN-192): calculados na hora, para a semana ou o mês. Vêm de `ReviewSession` e `ExamAttempt` (horas), de `AttemptAnswer` com o gabarito (`Alternative.isCorrect`) e o conteúdo da questão (acertos e desempenho por matéria) e de `User.streakDays` (sequência). Detalhes na seção 7.7.
 - Rank: usuários ordenados por `User.coins` (sem período).
 - **Nível** (RN-093): `nível = mínimo(20, moedas ÷ 1.000, arredondado para baixo)`. A faixa sai do nível: 0 a 2 Bronze, 3 a 5 Prata, 6 a 8 Ouro, 9 a 11 Ametista, 12 a 14 Rubi, 15 a 17 Esmeralda, 18 a 20 Diamante. Como os limites são fixos, ficam numa constante do código, e não numa tabela. As moedas são cumulativas e nunca são gastas (RN-097): `User.coins` é o total ganho, e acima de 20.000 o nível fica em 20 enquanto as moedas continuam somando.
-- Avatares liberados: os de `requiredLevel` até o nível atual.
+- Avatares e fundos liberados: os de `requiredLevel` até o nível atual.
 
 ### 5.5 Ligações
 
@@ -222,10 +223,12 @@ Todas as rotas, exceto as de `/auth`, exigem token. "Dono" = o recurso pertence 
 |--------|------|----------|----------------|
 | POST | `/auth/register` | Criar conta | Cadastro (RN-006, RN-007, RN-009) |
 | POST | `/auth/login` | Entrar | Login (RN-003, RN-004, RN-005) |
-| GET | `/me` | Nome, moedas, nível, faixa, avatar e sequência de dias | TopBar em todas as telas (RN-090), início do app (RN-002) |
+| GET | `/me` | Nome, moedas, nível, faixa, avatar, fundo e sequência de dias | TopBar em todas as telas (RN-090), início do app (RN-002) |
 | GET | `/me/recent` | Os 2 últimos decks ou provas estudados (tipo, id, nome). Usuário novo: lista vazia. | Home (RN-112, RN-117) |
 | GET | `/me/avatars` | Avatares, com quais estão liberados | Conta, Rank (RN-094) — fase 2 |
 | PATCH | `/me/avatar` | Escolher o avatar `{ avatarId }` (só um liberado) | Conta (RN-094) — fase 2 |
+| GET | `/me/backgrounds` | Fundos, com quais estão liberados e qual está em uso | Tela de escolha do fundo, a definir (RN-100) — fase 2 |
+| PATCH | `/me/background` | Escolher o fundo `{ backgroundId }` (só um liberado) | Tela de escolha do fundo, a definir (RN-100) — fase 2 |
 
 ### 7.2 Disciplinas e conteúdos
 
@@ -343,6 +346,7 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 
 - **Usuário de teste:** um usuário com senha conhecida, dono dos decks do seed.
 - **Avatares:** os 14 da RN-094, com o nível de cada um (0 a 6 sem upgrade, 7 a 13 com upgrade) e o nome da imagem da RN-095 (ex.: nível 8 `com-upgrade/goblinTerno.png`, nível 13 `com-upgrade/elfoMantoBranco.png`).
+- **Fundos:** os 7 da RN-100, com o nível e o personagem de cada um e o nome da imagem em `cenarios/`: 14 Cavaleiro `cenarioCavaleiro.png`, 15 Goblin `cenarioGoblin.png`, 16 Mago `cenarioMago.png`, 17 Fada `cenarioFada.png`, 18 Esqueleto `cenarioEsqueleto.png`, 19 Elfo `cenarioElfo.png` e 20 Rei `cenarioRei.png`. Cada personagem tem um único fundo.
 - **Disciplinas e conteúdos:** os do catálogo fictício do front (`constants/mockSubjects.ts`).
 - **Decks e cards:** os 15 decks fictícios (`mockDecks.ts`) e os cards-base de cada um (`mockDeckCards.ts`), **sem** as repetições numeradas que o front gera para encher os decks grandes. No mock, a disciplina está no deck; no seed, ela vai para cada card (conteúdo = tema do deck), seguindo a RN-029. O título que os cards do mock têm é descartado: o card não tem título (RN-052).
 - **Provas e questões:** cerca de 30 questões únicas (as 21 da lista-base e as 9 do Simulado de Matemática), com 5 alternativas cada, ligadas às 26 provas por `ExamQuestion`. As 1.235 questões do front são repetições geradas ("... (2)") e não precisam virar linhas no banco.
@@ -368,7 +372,7 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 4. Autenticação (`/auth/register`, `/auth/login`, `/me`) e a ligação com o login e o cadastro do front.
 5. Disciplinas, decks e cards (as telas de decks já estão prontas no front), incluindo a dificuldade salva no card e a fila da revisão com repetições (RN-170, RN-171).
 6. Provas, questões e realização da prova.
-7. Fase 2: sessões de revisão para os Relatórios, pontos, Rank e avatares.
+7. Fase 2: sessões de revisão para os Relatórios, pontos, Rank, avatares e fundos.
 
 ---
 
@@ -384,7 +388,7 @@ Respostas pendentes no `REGRAS_DE_NEGOCIO.md` do front que alteram tabelas ou ro
 | RN-012 | Telas citadas na ajuda que não existem (perfil, alterar senha, exportar ou excluir conta, 2FA) | Rotas novas em `/me` |
 | RN-036 | Tamanho máximo dos textos; nomes de deck repetidos | Validadores Zod, regras de unicidade |
 | RN-037 | Editar ou excluir o deck inteiro | `PATCH` e `DELETE /decks/:deckId` |
-| RN-099 | Desempate e tamanho do Rank; escolha do avatar | `GET /ranking`, `PATCH /me/avatar` |
+| RN-099 | Desempate e tamanho do Rank; escolha do avatar; fundo preso ao avatar do mesmo personagem; fundo novo passa a ser usado ao ser liberado | `GET /ranking`, `PATCH /me/avatar`, `PATCH /me/background` (conferir `Background.character`), atualizar `User.backgroundId` ao subir de nível |
 | RN-118 | Acesso recente ao começar ou ao concluir; estudo por disciplina nos recentes | Onde o `RecentAccess` é gravado |
 | RN-193 | O que entra nas horas e nas questões dos Relatórios; início da semana e do mês; formato do mensal | `GET /reports` |
 | RN-140, RN-141, RN-156 | Quem define a dificuldade, campos da questão, escala das estrelas | `Question`, `Alternative` |
