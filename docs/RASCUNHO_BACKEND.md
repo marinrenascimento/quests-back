@@ -343,17 +343,19 @@ Pendentes na RN-193: se só as provas entregues contam; se revisão encerrada an
 
 ### 7.8 Jogos (nada a fazer por enquanto)
 
-**O back não precisa de nada para os jogos hoje.** A tela Jogos e o Elfo Matemático (RN-270 a RN-289) funcionam só no front: as equações são sorteadas no app, a partida fica na memória da tela e nada é salvo. Os jogos não dão moedas e não entram no Rank nem nos Relatórios (RN-288). O código está explicado em `quests-front/docs/JOGOS.md`.
+**O back não precisa de nada para os jogos hoje.** A tela Jogos, o Elfo Matemático, o Goblin Ortográfico e o Caça-Palavras (RN-270 a RN-310) funcionam só no front: as equações são sorteadas no app, as palavras e as perguntas ficam em listas no app, uma por nível, as grades são geradas no app, a partida fica na memória da tela e nada é salvo. Os jogos não dão moedas e não entram no Rank nem nos Relatórios (RN-288, RN-299, RN-310). O código está explicado em `quests-front/docs/JOGOS.md`.
 
 As respostas a estas perguntas mudam isso:
 
 | Se o grupo decidir que... | Pergunta | O back precisaria de |
 |---------------------------|----------|----------------------|
-| O jogo dá moedas, conta para a sequência de dias ou entra nos Relatórios | RN-288 | Tabela `GameSession` (id, userId, gameId, difficulty, score, startedAt, endedAt), `POST /game-sessions` ao terminar a partida e um valor novo em `CoinReason`. Nos Relatórios, a duração entraria nas horas de estudo. |
-| Existe recorde por nível | RN-288 | A mesma `GameSession` e `GET /game-sessions/best?gameId=&difficulty=`, com o maior `score`. |
+| O jogo dá moedas, conta para a sequência de dias ou entra nos Relatórios | RN-288, RN-299, RN-310 | Tabela `GameSession` (id, userId, gameId, difficulty, score, startedAt, endedAt), `POST /game-sessions` ao terminar a partida e um valor novo em `CoinReason`. Nos Relatórios, a duração entraria nas horas de estudo. |
+| Existe recorde por nível | RN-288, RN-299, RN-310 | A mesma `GameSession` e `GET /game-sessions/best?gameId=&difficulty=`, com o maior `score`. |
 | As equações vêm do banco ou das questões de Matemática | RN-289 | `GET /games/:gameId/rounds?difficulty=`, devolvendo as equações com as opções. O `Question` atual tem título e enunciado longos, então precisaria de uma forma curta para caber em cima do monstro. |
+| As palavras do Goblin Ortográfico vêm do banco | RN-298 | Tabela `SpellingWord` (id, difficulty, correct, shown, wrongOptions; `correct` único), com as listas de `constants/mockSpellingWords.ts` no seed, e `GET /games/spelling/words?difficulty=`, que devolve a lista inteira do nível: as respostas certas chegam ao app, como já acontece hoje. Se o jogo der moedas, a conferência precisaria passar para o back, como no aviso abaixo. |
+| As perguntas do Caça-Palavras vêm do banco | RN-309 | Tabela `WordSearchQuestion` (id, difficulty, topicId, question, answer), com as listas de `constants/mockWordSearchQuestions.ts` no seed, e `GET /games/word-search/questions?difficulty=`. `topicId` liga ao catálogo de disciplinas e conteúdos, se o grupo quiser (hoje o app só guarda "biologia" ou "química"). A grade continua sendo gerada no app: o back só entrega as perguntas. A resposta precisa ser uma palavra só e caber na grade do nível (até 8, 10 ou 12 letras), o que os validadores teriam que conferir. |
 
-**Atenção se o jogo der moedas:** hoje quem sabe o resultado é só o app, então o back teria que confiar no `score` enviado, e isso pode ser forjado. Antes de ligar moedas aos jogos, o grupo precisa decidir entre aceitar esse risco, com um limite de moedas por partida ou por dia, ou mover as equações e a conferência das respostas para o back.
+**Atenção se o jogo der moedas:** hoje quem sabe o resultado é só o app, então o back teria que confiar no `score` enviado, e isso pode ser forjado. Antes de ligar moedas aos jogos, o grupo precisa decidir entre aceitar esse risco, com um limite de moedas por partida ou por dia, ou mover as equações, as palavras, as perguntas e a conferência das respostas para o back.
 
 ---
 
@@ -394,7 +396,7 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 - **O que o front calcula hoje e passa a vir do back:** a fila da revisão (`utils/reviewQueue.ts`, RN-171), o sorteio dos estudos por disciplina (RN-085, RN-251) e a montagem das opções de disciplina e conteúdo desses estudos (RN-079, RN-250).
 - **Gabarito:** hoje o front tem as questões com a alternativa correta em memória, inclusive na realização da prova, onde ela não aparece. Com o back, a realização recebe as questões sem `isCorrect` (seção 7.6).
 - **Acessos recentes (RN-112, RN-117):** os 2 quadrados da Home continuam vazios até o `GET /me/recent` existir.
-- **Jogos (RN-270 a RN-289):** não passam pelo back e não têm mock para trocar. As equações são geradas em `utils/mathEquation.ts` (seção 7.8).
+- **Jogos (RN-270 a RN-310):** não passam pelo back. As equações são geradas em `utils/mathEquation.ts`; as palavras ficam em `constants/mockSpellingWords.ts` e as perguntas, em `constants/mockWordSearchQuestions.ts`. Esses dois arquivos só seriam trocados se as RN-298 e RN-309 decidirem pelo banco (seção 7.8).
 - **Contrato:** front e back estão em repositórios separados e não compartilham tipos automaticamente. O formato de cada rota (corpo e resposta) é combinado e registrado antes de implementar.
 
 ---
@@ -436,4 +438,4 @@ Respostas pendentes no `REGRAS_DE_NEGOCIO.md` do front que alteram tabelas ou ro
 | RN-158 | A prova tem tempo limite? | `ExamAttempt` (prazo) |
 | RN-159 | Dá para sair e retomar a prova? | `ExamAttempt` em andamento, `AttemptHighlight`, `GET /attempts/:id` |
 | RN-160 | Pode entregar em branco? Pode refazer? | Validação do `submit`, várias realizações |
-| RN-288, RN-289 | Os jogos dão moedas, contam para a sequência ou para os Relatórios? Têm recorde? As equações vêm do banco? | Seção 7.8: `GameSession`, `POST /game-sessions`, `CoinReason` e rotas de equações |
+| RN-288, RN-289, RN-298, RN-299, RN-309, RN-310 | Os jogos dão moedas, contam para a sequência ou para os Relatórios? Têm recorde? As equações, as palavras e as perguntas vêm do banco? | Seção 7.8: `GameSession`, `POST /game-sessions`, `CoinReason`, `SpellingWord`, `WordSearchQuestion` e rotas de equações, palavras e perguntas |
