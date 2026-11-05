@@ -112,13 +112,13 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 
 | Model | Campos | Observações |
 |-------|--------|-------------|
-| `User` | id, name, **username** (único), email (único), passwordHash, avatarId?, backgroundId?, coins, streakDays, lastStreakDate? | O login é por `username` (RN-003). `coins` são as moedas, que também são os pontos do Rank; **não existe XP** (RN-092). `coins` é um cache do histórico de moedas (fase 2). `streakDays` e `lastStreakDate` controlam a sequência de dias (RN-096, regra do "dia" pendente na RN-097). O nível não é guardado: é calculado pelas moedas (seção 5.4). `backgroundId` é o fundo escolhido pelo usuário (RN-100); fica vazio até o nível 14, quando o avatar ainda aparece sem fundo. |
+| `User` | id, name, **username** (único), email (único), passwordHash, avatarId?, backgroundId?, coins, streakDays, lastStreakDate? | O login é por `username` (RN-003). `coins` são as moedas, que também são os pontos do Rank; **não existe XP** (RN-092). `coins` é um cache do histórico de moedas (fase 2). `streakDays` e `lastStreakDate` controlam a sequência de dias (RN-096 a RN-098). O nível não é guardado: é calculado pelas moedas (seção 5.4). `backgroundId` é o fundo escolhido pelo usuário (RN-100); fica vazio até o nível 14, quando o avatar ainda aparece sem fundo. |
 
 **Catálogo de disciplinas** (usado por cards e questões)
 
 | Model | Campos | Observações |
 |-------|--------|-------------|
-| `Subject` | id, name (único), createdById? | Disciplina. A busca não diferencia maiúsculas nem acentos (RN-045). |
+| `Subject` | id, name (único), createdById? | Disciplina. O catálogo é um só para cards e questões (RN-047). A busca não diferencia maiúsculas nem acentos (RN-045). |
 | `Topic` | id, subjectId, name; único (subjectId, name) | O "Conteúdo" de uma disciplina (RN-046). |
 
 **Decks**
@@ -132,17 +132,18 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 
 | Model | Campos | Observações |
 |-------|--------|-------------|
-| `Exam` | id, title, ownerId?, institution?, year? | Sem `ownerId`: prova pública (vestibular). A quantidade de questões é calculada (RN-139). `institution` e `year` são para a futura tela de Vestibulares (sem mockup ainda). |
-| `Question` | id, topicId, statement, difficulty, createdById? | `difficulty`: FACIL, MEDIO ou DIFICIL (RN-140). `createdById` serve para a regra de quem edita (RN-146). |
-| `Alternative` | id, questionId, position (0 a 4 = A a E), text, isCorrect; único (questionId, position) | A letra vem da posição, como no front. Uma correta por questão (garantido no service). **`isCorrect` nunca vai para o app durante a prova.** |
-| `ExamQuestion` | examId, questionId, position; chave (examId, questionId); único (examId, position) | `position` é o "QUESTÃO N". A mesma questão pode estar em várias provas. |
+| `Exam` | id, title, ownerId?, institution?, year? | Com `ownerId`: prova do usuário, em Minhas Provas (RN-130). Sem `ownerId`: prova de vestibular, em Vestibulares (RN-248), com `institution` (ex.: "ENEM") e `year`, e que não pode ser alterada (RN-258). A quantidade de questões, as disciplinas e os conteúdos não são guardados: saem das questões (RN-139, RN-253). A prova do usuário não fica sem questões (RN-259). |
+| `Question` | id, topicId, title, statement, difficulty, createdById? | Todas de assinalar (RN-141). `title` é o nome na grade e `statement` é o enunciado (RN-138, RN-244). `difficulty`: FACIL, MEDIO ou DIFICIL, escolhida por quem cria (RN-140, RN-236). A disciplina vem pelo conteúdo, como nos cards. `createdById` serve para a regra de quem edita (RN-146). |
+| `Alternative` | id, questionId, position, text, isCorrect; único (questionId, position) | A quantidade é definida por quem cria a questão (RN-141, RN-237; mínimo e máximo em aberto na RN-257). A letra vem da posição (0 = A, 1 = B...), como no front. Exatamente uma correta por questão (garantido no service, RN-238). **`isCorrect` nunca vai para o app durante a prova**, só no Visualizar e no Editar Questão (RN-244, RN-245). |
+| `ExamQuestion` | examId, questionId, position; chave (examId, questionId); único (examId, position) | `position` é a ordem em Questões da Prova e o "QUESTÃO N". As questões de uma prova do usuário são só dela: editar ou excluir uma não pode alterar outra prova (RN-245, RN-246). O vínculo N-N serve para as provas de vestibular reaproveitarem questões. Excluir uma questão remove o vínculo; a `Question` continua se tiver respostas, para os Relatórios não mudarem. |
 
 **Realização da prova**
 
 | Model | Campos | Observações |
 |-------|--------|-------------|
-| `ExamAttempt` | id, userId, examId, status, startedAt, endedAt?, correctCount?, score? | `status`: IN_PROGRESS, SUBMITTED ou ABANDONED. Cada realização é uma linha nova. `endedAt` é o momento da entrega ou do abandono: de `startedAt` a `endedAt` é o tempo de estudo que entra nos Relatórios (se o abandono conta, depende da RN-193). |
-| `AttemptAnswer` | attemptId, questionId, alternativeId; chave (attemptId, questionId) | Uma resposta por questão (RN-151). **Sem linha = em branco.** O service confere que a alternativa pertence à questão. |
+| `ExamAttempt` | id, userId, examId?, title, status, startedAt, endedAt?, correctCount?, score? | `status`: IN_PROGRESS, SUBMITTED ou ABANDONED. Cada realização é uma linha nova. **Sem `examId`:** a prova temporária do Estudar por Disciplina, que não vira um `Exam` e não aparece em Minhas Provas (RN-251, RN-261); `title` guarda o nome mostrado ("Disciplina - Conteúdo"). `endedAt` é o momento da entrega ou do abandono: de `startedAt` a `endedAt` é o tempo de estudo que entra nos Relatórios (se o abandono conta, depende da RN-193). |
+| `AttemptQuestion` | attemptId, questionId, position; chave (attemptId, questionId) | As questões da realização, na ordem. Guarda o sorteio da prova temporária (RN-251) e mantém a lista mesmo que a prova mude depois. |
+| `AttemptAnswer` | attemptId, questionId, alternativeId; chave (attemptId, questionId) | Uma resposta por questão, guardada pela alternativa, não pela letra (RN-151). **Sem linha = em branco.** O service confere que a alternativa pertence à questão. |
 
 **Home**
 
@@ -154,7 +155,6 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 
 | Model | Campos | Quando |
 |-------|--------|--------|
-| `UserExam` | userId, examId, addedAt; chave (userId, examId) | Se "Minhas Provas" puder incluir vestibulares adicionados pelo usuário. Se forem só as provas criadas por ele, `Exam.ownerId` basta. |
 | `AttemptHighlight` | attemptId, questionId, wordIndex, color; chave (attemptId, questionId, wordIndex) | Se retomar a prova (RN-159) incluir as marcações do texto (RN-155). |
 
 ### 5.2 Fase 2 — telas e regras ainda em aberto
@@ -170,6 +170,7 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 **Fora do plano por decisão do grupo:**
 - **Recuperação de senha:** é feita pelo suporte, por e-mail (RN-008). Não há tabela de token nem rota.
 - **Feedback e suporte:** a tela de Feedback orienta o usuário a escrever para o e-mail de suporte, e o "Falar com o Suporte" abre um modal com esse e-mail (RN-210); não há formulário no app. Uma tabela de feedback só entra se isso mudar.
+- **Jogos:** por enquanto são só do front, sem tabela nem rota (seção 7.8).
 
 ### 5.3 Enums
 
@@ -194,7 +195,10 @@ Ids em `uuid` (texto), que combinam com os ids em string que o front já usa nas
 
 ```
 User 1─N Deck 1─N Flashcard N─1 Topic N─1 Subject
+User 1─N Exam (só as provas do usuário; as de vestibular não têm dono)
 User 1─N ExamAttempt 1─N AttemptAnswer ─> Question, Alternative
+ExamAttempt 1─N AttemptQuestion ─> Question
+ExamAttempt N─1 Exam (opcional: a prova temporária não tem Exam)
 Exam N─N Question (via ExamQuestion, com position)
 Question 1─N Alternative
 Question N─1 Topic
@@ -215,7 +219,7 @@ Question N─1 Topic
 
 ## 7. Rotas da API (proposta)
 
-Todas as rotas, exceto as de `/auth`, exigem token. "Dono" = o recurso pertence ao usuário do token; se não pertencer, a resposta é `404` (para não revelar que existe).
+Todas as rotas, exceto as de `/auth`, exigem token. "Dono" = o recurso pertence ao usuário do token; se não pertencer, a resposta é `404` (para não revelar que existe). As provas de vestibular são a exceção: todos podem ler, e ninguém altera pelo app (`403`, RN-258).
 
 ### 7.1 Conta e usuário
 
@@ -234,13 +238,14 @@ Todas as rotas, exceto as de `/auth`, exigem token. "Dono" = o recurso pertence 
 
 | Método | Rota | Para quê | Telas e regras |
 |--------|------|----------|----------------|
-| GET | `/subjects?search=` | Listar e buscar disciplinas | Novo/Editar Flashcard (RN-045) |
-| POST | `/subjects` | Criar disciplina | Novo Flashcard e, no futuro, cadastro de questões (RN-045, RN-047) |
-| GET | `/subjects/:subjectId/topics?search=` | Conteúdos de uma disciplina | Novo/Editar Flashcard (RN-046) |
-| POST | `/subjects/:subjectId/topics` | Criar conteúdo | Novo Flashcard e, no futuro, cadastro de questões (RN-046, RN-047) |
+| GET | `/subjects?search=` | Listar e buscar disciplinas | Novo/Editar Flashcard, Adicionar/Editar Questão (RN-045, RN-235) |
+| POST | `/subjects` | Criar disciplina | Novo/Editar Flashcard, Adicionar/Editar Questão (RN-045, RN-047) |
+| GET | `/subjects/:subjectId/topics?search=` | Conteúdos de uma disciplina | Novo/Editar Flashcard, Adicionar/Editar Questão (RN-046, RN-235) |
+| POST | `/subjects/:subjectId/topics` | Criar conteúdo | Novo/Editar Flashcard, Adicionar/Editar Questão (RN-046, RN-047) |
+| GET | `/study/subjects` | Disciplinas e conteúdos **com cards** | Configurar Deck por Disciplina (RN-079) |
+| GET | `/study/exam-subjects` | Disciplinas e conteúdos **com questões**, considerando todas as questões do sistema | Configurar Prova por Disciplina (RN-250) |
 
 O catálogo de disciplinas e conteúdos é **um só** para cards e questões, com as mesmas regras de busca e criação (RN-047). A criação recusa um nome que já existe (sem diferenciar maiúsculas nem acentos) com `409`.
-| GET | `/study/subjects` | Disciplinas e conteúdos **com cards** | Configurar Deck por Disciplina (RN-079) |
 
 ### 7.3 Decks e cards
 
@@ -260,16 +265,18 @@ O catálogo de disciplinas e conteúdos é **um só** para cards e questões, co
 | Método | Rota | Para quê | Telas e regras |
 |--------|------|----------|----------------|
 | GET | `/decks/:deckId/review` | Monta a fila da revisão do deck, com as repetições por dificuldade | Revisão (RN-070, RN-171) |
-| PUT | `/decks/:deckId/cards/:cardId/difficulty` | Salva a dificuldade marcada `{ difficulty }` no card (vale a última) | Revisão (RN-072, RN-076, RN-170) |
-| POST | `/study/subject` | Estudo por disciplina: `{ subjectId, topicId?, quantity }`. Sem `topicId`, usa os cards de todos os conteúdos da disciplina. Sorteia `quantity` cards sem repetir entre os decks do usuário; se houver menos, devolve todos (ex.: 30 pedidos e 14 disponíveis: 14). Não cria deck. | Configurar Deck por Disciplina (RN-077, RN-082 a RN-085) |
+| PUT | `/decks/:deckId/cards/:cardId/difficulty` | Salva a dificuldade marcada `{ difficulty }` no card (vale a última). O app chama ao sair do card (avançar, encerrar ou trocar de aba), só se houver marcação. | Revisão (RN-072, RN-076, RN-170) |
+| POST | `/study/subject` | Estudo por disciplina: `{ subjectId, topicId?, quantity }`. Sem `topicId`, usa os cards de todos os conteúdos da disciplina. Sorteia `quantity` cards sem repetir entre os decks do usuário; se houver menos, devolve todos (ex.: 30 pedidos e 14 disponíveis: 14). Cada card vem com o `deckId`, para salvar a dificuldade. Não cria deck. | Configurar Deck por Disciplina (RN-077, RN-082 a RN-085) |
 | POST | `/review-sessions` e `/review-sessions/:sessionId/finish` | Registrar início e fim da sessão, para os Relatórios | Relatórios — fase 2 |
 
-**Montagem da fila (RN-171, proposta):**
+**Montagem da fila (RN-171):** é o que o front já faz com os dados em memória, em `utils/reviewQueue.ts`. Quando esta rota existir, o front passa a receber a fila pronta e essa função sai de lá.
 1. Cada card entra 1 vez. Card salvo como Difícil entra mais 2 vezes (3 no total). Card salvo como Impossível entra mais 3 vezes (4 no total).
-2. As cópias são distribuídas sem nunca colocar o mesmo card duas vezes seguidas. Uma forma simples: a cada posição, escolher, entre os cards com cópias sobrando e diferentes do anterior, o que tem mais cópias sobrando (empate: a ordem da lista).
-3. Quando não houver outro card para intercalar (ex.: no fim só restam cópias do mesmo card), o card pode vir seguido: **nenhuma cópia é descartada**.
+2. A ordem base é a da lista, e as repetições ficam espalhadas pela revisão inteira: cada aparição recebe uma posição relativa `(cópia + (índice na lista + 0,5) ÷ total de cards) ÷ total de cópias do card`, e a fila sai ordenada por ela. Os cards que aparecem uma vez mantêm a ordem da lista.
+3. O primeiro card da lista sempre abre a revisão (RN-070).
+4. A cópia que ficou logo depois de outra igual muda para o primeiro lugar entre dois outros cards, procurando primeiro à frente e depois para trás.
+5. Quando não houver outro card para intercalar, a cópia vai para o fim e o card vem seguido: **nenhuma cópia é descartada**.
 
-Pendentes na RN-172: se a marcação feita durante a revisão já acrescenta cópias na revisão em andamento (o que exigiria o front reorganizar a fila restante, ou pedir ao back uma fila nova); se card sem dificuldade conta como 1 vez; se a ordem base é a da lista ou embaralhada; se a regra vale também para o estudo por disciplina.
+Pendentes na RN-172, com o que o front faz por enquanto: a marcação feita durante a revisão só muda as próximas revisões (acrescentar cópias na revisão em andamento exigiria o front reorganizar a fila restante, ou pedir ao back uma fila nova); card sem dificuldade aparece 1 vez; a ordem base é a da lista; as repetições valem só na revisão de um deck, sem entrar no `POST /study/subject`, mas a marcação feita no estudo por disciplina fica salva no card.
 
 **Moedas da revisão (RN-096):** `POST /review-sessions/:sessionId/finish` com `{ completed: true }` (chegou ao "Revisão Concluída!") dá 1 moeda; encerrar antes (`completed: false`) não dá. Vale para deck e estudo por disciplina (RN-089), e toda revisão completa dá moeda, mesmo repetindo o deck no mesmo dia (RN-097).
 
@@ -279,15 +286,27 @@ Pendentes na RN-172: se a marcação feita durante a revisão já acrescenta có
 3. A moeda de sequência não conta para validar o dia (só as de revisão, estudo ou prova).
 4. Ao **mostrar** a sequência (`/me`, Relatórios), se `lastStreakDate` for anterior a ontem, ela é exibida como 0, mesmo que o banco ainda guarde o valor antigo.
 
-"Hoje" e "ontem" no fuso do Brasil, como nos Relatórios. Se várias revisões no mesmo dia dão moeda, depende da RN-097.
+"Hoje" e "ontem" no fuso do Brasil, como nos Relatórios. Várias revisões no mesmo dia dão moeda toda vez, mas a sequência só sobe uma vez por dia (RN-097).
 
 ### 7.5 Provas e questões
 
 | Método | Rota | Para quê | Telas e regras |
 |--------|------|----------|----------------|
-| GET | `/exams?cursor=&limit=` | Minhas Provas (título e quantidade de questões) | Minhas Provas (RN-130, RN-131, RN-133) |
-| GET | `/exams/:examId` | Dados da prova | Questões da Prova (RN-142: `404` = "Prova Não Encontrada") |
-| GET | `/exams/:examId/questions?cursor=&limit=` | Questões da prova (rótulo, enunciado, dificuldade), na ordem | Questões da Prova (RN-137, RN-138, RN-147) |
+| GET | `/exams?cursor=&limit=` | Minhas Provas: só as provas do usuário (título e quantidade de questões), as mais novas primeiro | Minhas Provas (RN-130, RN-131, RN-133) |
+| POST | `/exams` | Criar a prova **com as questões adicionadas**, numa transação só `{ title, questions: [...] }`. Precisa de pelo menos 1 questão. | Criar Nova Prova (RN-231, RN-254, RN-259) |
+| GET | `/exams/entrance?cursor=&limit=` | Provas de vestibular (título, `institution`, `year` e quantidade de questões) | Vestibulares (RN-248) |
+| GET | `/exams/:examId` | Dados da prova, com a origem (do usuário ou de vestibular) | Questões da Prova (RN-142: `404` = "Prova Não Encontrada"; a origem decide os botões, RN-249) |
+| GET | `/exams/:examId/questions?cursor=&limit=` | Questões da prova na ordem: "Disciplina - Conteúdo", título e dificuldade (o enunciado fica no Visualizar) | Questões da Prova (RN-137, RN-138, RN-147) |
+| POST | `/exams/:examId/questions` | Adicionar questão no fim da prova | Adicionar Questão (RN-235 a RN-242) |
+| GET | `/exams/:examId/questions/:questionId` | Uma questão completa, **com o gabarito** (`isCorrect`) | Visualizar Questão (RN-244, RN-247), Editar Questão |
+| PATCH | `/exams/:examId/questions/:questionId` | Editar questão, mantendo a posição | Editar Questão (RN-245) |
+| DELETE | `/exams/:examId/questions/:questionId` | Excluir questão. Se for a única da prova, não exclui e responde `409`, e o app mostra "A Prova Precisa de Pelo Menos 1 Questão." | Questões da Prova, Visualizar Questão (RN-246, RN-259) |
+
+`/exams/entrance` é uma rota fixa: no Express, ela precisa ser registrada antes de `/exams/:examId`.
+
+**Validação da questão** (no `POST /exams`, no `POST` e no `PATCH` das questões): disciplina (conteúdo), título, enunciado e dificuldade obrigatórios (RN-255); cada alternativa com texto (RN-256); exatamente uma correta (RN-141, RN-238). Nas provas de vestibular, o `POST`, o `PATCH` e o `DELETE` respondem `403` (RN-247, RN-258).
+
+**Estudar por Disciplina (RN-250 a RN-252, RN-262, RN-263):** `POST /study/exam-subject` com `{ subjectId, topicId?, difficulty?, quantity }` sorteia as questões, sem repetir, entre todas as do sistema, inclusive as de vestibular. Com menos questões do que a quantidade, entram todas. Cria um `ExamAttempt` sem `examId` e devolve o mesmo formato do `POST /exams/:examId/attempts`, com o nome "Disciplina - Conteúdo" (sem conteúdo, só a disciplina, RN-173). Combinação sem nenhuma questão: `400` com erro no campo `difficulty` ("Nenhuma Questão com Esse Nível de Dificuldade."). Se essa prova dá moedas e entra nos Relatórios depende da RN-265.
 
 ### 7.6 Realização da prova
 
@@ -295,7 +314,7 @@ Pendentes na RN-172: se a marcação feita durante a revisão já acrescenta có
 |--------|------|----------|----------------|
 | POST | `/exams/:examId/attempts` | Começar: cria a realização e devolve as questões com as alternativas, **sem o gabarito** | Realização da Prova (RN-150) |
 | GET | `/attempts/:attemptId` | Retomar uma realização em andamento | Depende da RN-159 |
-| PUT | `/attempts/:attemptId/answers/:questionId` | Escolher ou trocar a resposta `{ position }` | RN-151 |
+| PUT | `/attempts/:attemptId/answers/:questionId` | Escolher ou trocar a resposta `{ alternativeId }` | RN-151 |
 | DELETE | `/attempts/:attemptId/answers/:questionId` | Desmarcar (volta a "em branco") | RN-151 |
 | POST | `/attempts/:attemptId/submit` | Entregar: corrige pelo gabarito, grava `correctCount` e `score`, dá 1 moeda por acerto (`EXAM_CORRECT_ANSWERS`) e devolve o resumo | RN-152, RN-096 (refazer a prova dá moedas de novo, RN-097) |
 | POST | `/attempts/:attemptId/abandon` | Sair sem entregar | RN-153 |
@@ -322,6 +341,20 @@ Pendentes na RN-172: se a marcação feita durante a revisão já acrescenta có
 
 Pendentes na RN-193: se só as provas entregues contam; se revisão encerrada antes do fim e prova abandonada contam tempo; o início da semana e do mês; e se o mensal mostra a sequência de dias e as horas por dia (como o semanal) ou continua com a "Sequência de Meses" e o gráfico "Este Mês × Mês Passado". Os dias e meses são calculados no fuso do Brasil, não em UTC.
 
+### 7.8 Jogos (nada a fazer por enquanto)
+
+**O back não precisa de nada para os jogos hoje.** A tela Jogos e o Elfo Matemático (RN-270 a RN-289) funcionam só no front: as equações são sorteadas no app, a partida fica na memória da tela e nada é salvo. Os jogos não dão moedas e não entram no Rank nem nos Relatórios (RN-288). O código está explicado em `quests-front/docs/JOGOS.md`.
+
+As respostas a estas perguntas mudam isso:
+
+| Se o grupo decidir que... | Pergunta | O back precisaria de |
+|---------------------------|----------|----------------------|
+| O jogo dá moedas, conta para a sequência de dias ou entra nos Relatórios | RN-288 | Tabela `GameSession` (id, userId, gameId, difficulty, score, startedAt, endedAt), `POST /game-sessions` ao terminar a partida e um valor novo em `CoinReason`. Nos Relatórios, a duração entraria nas horas de estudo. |
+| Existe recorde por nível | RN-288 | A mesma `GameSession` e `GET /game-sessions/best?gameId=&difficulty=`, com o maior `score`. |
+| As equações vêm do banco ou das questões de Matemática | RN-289 | `GET /games/:gameId/rounds?difficulty=`, devolvendo as equações com as opções. O `Question` atual tem título e enunciado longos, então precisaria de uma forma curta para caber em cima do monstro. |
+
+**Atenção se o jogo der moedas:** hoje quem sabe o resultado é só o app, então o back teria que confiar no `score` enviado, e isso pode ser forjado. Antes de ligar moedas aos jogos, o grupo precisa decidir entre aceitar esse risco, com um limite de moedas por partida ou por dia, ou mover as equações e a conferência das respostas para o back.
+
 ---
 
 ## 8. Padrões da API
@@ -333,7 +366,7 @@ Pendentes na RN-193: se só as provas entregues contam; se revisão encerrada an
   { "error": { "code": "VALIDATION_ERROR", "message": "Dados inválidos.", "fields": { "password": "A senha precisa ter pelo menos 8 caracteres, com letras e números." } } }
   ```
 
-  Códigos: `400` validação, `401` sem token ou token inválido, `404` não encontrado (ou não é do usuário), `409` conflito (username ou e-mail já usados), `500` erro inesperado (sem detalhes internos na resposta).
+  Códigos: `400` validação, `401` sem token ou token inválido, `403` alteração proibida (prova de vestibular, RN-258), `404` não encontrado (ou não é do usuário), `409` conflito (username, e-mail ou disciplina já usados; excluir a única questão da prova, RN-259), `500` erro inesperado (sem detalhes internos na resposta).
 - **Paginação** (as listas do front têm o TODO "carregar mais ao rolar"): `?cursor=<id>&limit=<n>`, com resposta `{ "items": [...], "nextCursor": "<id> | null" }`.
 - **Textos** (mensagens de erro e rótulos) em português, como no app.
 - **Busca** por "contém", sem diferenciar maiúsculas nem acentos: "arte" encontra "Artes" (RN-045, RN-048, RN-078).
@@ -348,9 +381,8 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 - **Avatares:** os 14 da RN-094, com o nível de cada um (0 a 6 sem upgrade, 7 a 13 com upgrade) e o nome da imagem da RN-095 (ex.: nível 8 `com-upgrade/goblinTerno.png`, nível 13 `com-upgrade/elfoMantoBranco.png`).
 - **Fundos:** os 7 da RN-100, com o nível e o personagem de cada um e o nome da imagem em `cenarios/`: 14 Cavaleiro `cenarioCavaleiro.png`, 15 Goblin `cenarioGoblin.png`, 16 Mago `cenarioMago.png`, 17 Fada `cenarioFada.png`, 18 Esqueleto `cenarioEsqueleto.png`, 19 Elfo `cenarioElfo.png` e 20 Rei `cenarioRei.png`. Cada personagem tem um único fundo.
 - **Disciplinas e conteúdos:** os do catálogo fictício do front (`constants/mockSubjects.ts`).
-- **Decks e cards:** os 15 decks fictícios (`mockDecks.ts`) e os cards-base de cada um (`mockDeckCards.ts`), **sem** as repetições numeradas que o front gera para encher os decks grandes. No mock, a disciplina está no deck; no seed, ela vai para cada card (conteúdo = tema do deck), seguindo a RN-029. O título que os cards do mock têm é descartado: o card não tem título (RN-052).
-- **Provas e questões:** cerca de 30 questões únicas (as 21 da lista-base e as 9 do Simulado de Matemática), com 5 alternativas cada, ligadas às 26 provas por `ExamQuestion`. As 1.235 questões do front são repetições geradas ("... (2)") e não precisam virar linhas no banco.
-- **Gabarito:** o mock do front não tem gabarito (RN-141). No seed, marcar a alternativa correta só para permitir testar a correção.
+- **Decks e cards:** os 15 decks fictícios (`mockDecks.ts`) e os cards-base de cada um (`mockDeckCards.ts`), **sem** as repetições que o front gera para encher os decks grandes. No mock, a disciplina dos cards gerados fica guardada junto do deck, só para gerá-los; no seed, ela vai para cada card (conteúdo = tema do deck), seguindo a RN-029.
+- **Provas e questões:** as 18 provas do usuário de teste (`mockExams.ts`) e as 8 de vestibular (`mockEntranceExams.ts`, com `institution` e `year`; uma delas fica sem questões, para testar o estado vazio, RN-142). As questões são as cerca de 30 únicas do front (as 21 da lista-base e as 9 do Simulado de Matemática), já com título, 5 alternativas e o gabarito (RN-141). As 1.235 questões do front são repetições geradas ("... (2)") e não precisam virar linhas no banco. Cada prova do usuário de teste recebe cópias próprias das questões, para editar uma não alterar outra prova; as de vestibular podem compartilhar.
 
 ---
 
@@ -358,8 +390,11 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 
 - **URL da API:** proposta de usar a variável `EXPO_PUBLIC_API_URL` (lida pelo Expo) num arquivo `.env.local` do front, com o IP do PC (ex.: `http://192.168.0.15:3333`).
   - **Atenção:** o `.gitignore` do front ignora `.env*.local`, mas **não** ignora `.env`. Usar `.env.local`.
-- **Onde trocar os mocks:** os pontos estão marcados no front com `// TODO: substituir pelos dados do back`. Os principais são o `DecksProvider` (`hooks/useDecks.tsx`), `constants/mockExams.ts`, `constants/mockUser.ts`, `mockRanking.ts` e `mockReports.ts`.
-- **Deck sem disciplina (RN-029):** o tipo `Deck` do front ainda tem o campo `discipline`, usado no rótulo dos cards e no "Adicionar Card". Ele sai quando o front for ajustado (RN-040, RN-054, RN-055).
+- **Onde trocar os mocks:** os pontos estão marcados no front com `// TODO: substituir pelos dados do back`. Os principais são o `DecksProvider` (`hooks/useDecks.tsx`), o `ExamsProvider` (`hooks/useExams.tsx`), o `SubjectsProvider` (`hooks/useSubjects.tsx`), `constants/mockUser.ts`, `mockRanking.ts` e `mockReports.ts`.
+- **O que o front calcula hoje e passa a vir do back:** a fila da revisão (`utils/reviewQueue.ts`, RN-171), o sorteio dos estudos por disciplina (RN-085, RN-251) e a montagem das opções de disciplina e conteúdo desses estudos (RN-079, RN-250).
+- **Gabarito:** hoje o front tem as questões com a alternativa correta em memória, inclusive na realização da prova, onde ela não aparece. Com o back, a realização recebe as questões sem `isCorrect` (seção 7.6).
+- **Acessos recentes (RN-112, RN-117):** os 2 quadrados da Home continuam vazios até o `GET /me/recent` existir.
+- **Jogos (RN-270 a RN-289):** não passam pelo back e não têm mock para trocar. As equações são geradas em `utils/mathEquation.ts` (seção 7.8).
 - **Contrato:** front e back estão em repositórios separados e não compartilham tipos automaticamente. O formato de cada rota (corpo e resposta) é combinado e registrado antes de implementar.
 
 ---
@@ -371,7 +406,7 @@ Os mocks estão no repositório do **front**, que é separado; o seed precisa de
 3. `schema.prisma` da fase 1, a primeira migration e o seed.
 4. Autenticação (`/auth/register`, `/auth/login`, `/me`) e a ligação com o login e o cadastro do front.
 5. Disciplinas, decks e cards (as telas de decks já estão prontas no front), incluindo a dificuldade salva no card e a fila da revisão com repetições (RN-170, RN-171).
-6. Provas, questões e realização da prova.
+6. Provas e questões (criar, adicionar, editar e excluir), Vestibulares, estudo por disciplina das provas e realização da prova (as telas já estão prontas no front).
 7. Fase 2: sessões de revisão para os Relatórios, pontos, Rank, avatares e fundos.
 
 ---
@@ -382,18 +417,23 @@ Respostas pendentes no `REGRAS_DE_NEGOCIO.md` do front que alteram tabelas ou ro
 
 | Regra | Pergunta | O que muda |
 |-------|----------|------------|
-| RN-047 | Disciplinas e conteúdos criados no app são de todos ou só do usuário? | `Subject.createdById` e quem vê o quê |
-| RN-172 | Repetições do card Impossível (N), card sem dificuldade, efeito na revisão em andamento, ordem, sobras, estudo por disciplina | `GET /decks/:deckId/review` e `POST /study/subject` |
+| RN-266 | Disciplinas e conteúdos criados no app são de todos ou só do usuário? | `Subject.createdById` e quem vê o quê |
+| RN-172 | Efeito da marcação na revisão em andamento, card sem dificuldade, ordem base, estudo por disciplina | `GET /decks/:deckId/review` e `POST /study/subject` |
+| RN-173 | Nome do estudo por disciplina sem conteúdo escolhido | `POST /study/subject`, `POST /study/exam-subject`, `ExamAttempt.title` |
 | RN-011 | Regras do "Usuário": tamanho, caracteres, maiúsculas, se pode trocar | Validação do cadastro e do login, índice único de `username` |
-| RN-012 | Telas citadas na ajuda que não existem (perfil, alterar senha, exportar ou excluir conta, 2FA) | Rotas novas em `/me` |
+| RN-012, RN-211 | Telas e funções citadas na ajuda que não existem (perfil, alterar senha, exportar ou excluir conta, 2FA, filtros de questões, explicação na correção, jogos) | Rotas novas em `/me` e, se a explicação entrar, um campo em `Question` |
 | RN-036 | Tamanho máximo dos textos; nomes de deck repetidos | Validadores Zod, regras de unicidade |
 | RN-037 | Editar ou excluir o deck inteiro | `PATCH` e `DELETE /decks/:deckId` |
 | RN-099 | Desempate e tamanho do Rank; escolha do avatar; fundo preso ao avatar do mesmo personagem; fundo novo passa a ser usado ao ser liberado | `GET /ranking`, `PATCH /me/avatar`, `PATCH /me/background` (conferir `Background.character`), atualizar `User.backgroundId` ao subir de nível |
 | RN-118 | Acesso recente ao começar ou ao concluir; estudo por disciplina nos recentes | Onde o `RecentAccess` é gravado |
 | RN-193 | O que entra nas horas e nas questões dos Relatórios; início da semana e do mês; formato do mensal | `GET /reports` |
-| RN-140, RN-141, RN-156 | Quem define a dificuldade, campos da questão, escala das estrelas | `Question`, `Alternative` |
-| RN-146 | Quem pode editar ou excluir questões | `createdById` e as regras dos services |
+| RN-156, RN-264 | Escala das estrelas; relação da dificuldade da questão com a da revisão | `Question.difficulty` |
+| RN-146, RN-258 | Quem pode editar ou excluir questões; se as provas de vestibular podem ser alteradas | `createdById`, as regras dos services e o `403` |
+| RN-147 | Ordem das questões de uma prova | `ExamQuestion.position` |
+| RN-254, RN-255, RN-256, RN-257 | Campos obrigatórios da prova e da questão; alternativa vazia; mínimo e máximo de alternativas | Validadores Zod |
+| RN-259 | Pode excluir a última questão de uma prova? | `DELETE` da questão (`409`) |
+| RN-261, RN-262, RN-263, RN-265 | Estudo por disciplina das provas: fica salvo? Quantidade, sorteio e campos opcionais; dá moedas e entra nos Relatórios? | `POST /study/exam-subject`, `ExamAttempt` sem `examId`, `POST /attempts/:attemptId/submit`, `GET /reports` |
 | RN-158 | A prova tem tempo limite? | `ExamAttempt` (prazo) |
 | RN-159 | Dá para sair e retomar a prova? | `ExamAttempt` em andamento, `AttemptHighlight`, `GET /attempts/:id` |
 | RN-160 | Pode entregar em branco? Pode refazer? | Validação do `submit`, várias realizações |
-| "Minhas Provas" | Inclui vestibulares adicionados pelo usuário? | `UserExam` |
+| RN-288, RN-289 | Os jogos dão moedas, contam para a sequência ou para os Relatórios? Têm recorde? As equações vêm do banco? | Seção 7.8: `GameSession`, `POST /game-sessions`, `CoinReason` e rotas de equações |
